@@ -3,7 +3,13 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from langchain_huggingface import HuggingFaceEndpoint
+from langchain_community.llms import HuggingFaceHub
+```
+
+**And update `requirements.txt` on GitHub to include:**
+```
+langchain-community
+huggingface-hub
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -17,11 +23,15 @@ load_dotenv(dotenv_path=env_path)
 def load_llm():
     import streamlit as st
     hf_token = st.secrets.get("HF_TOKEN") or os.environ.get("HF_TOKEN")
-    return HuggingFaceEndpoint(
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
+    from langchain_community.llms import HuggingFaceHub
+    return HuggingFaceHub(
         repo_id="HuggingFaceH4/zephyr-7b-beta",
         huggingfacehub_api_token=hf_token,
-        max_new_tokens=150,
-        temperature=0.3,
+        model_kwargs={
+            "temperature": 0.3,
+            "max_new_tokens": 256,
+        }
     )
 
 custom_prompt_template = """<|system|>
@@ -101,5 +111,6 @@ if __name__ == "__main__":
 
     print("RESULT:", _safe_printable(response["result"]))
     print("SOURCE DOCUMENTS:", [_safe_printable(doc.page_content) for doc in response["source_documents"]])
+
 
 
