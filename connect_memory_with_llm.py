@@ -7,7 +7,7 @@ from langchain_huggingface import HuggingFaceEndpoint
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_huggingface import HuggingFacePipeline
+
 from langchain_core.output_parsers import StrOutputParser
 
 # Load .env from project root (which is parent of backend directory)
@@ -18,7 +18,7 @@ def load_llm():
     import streamlit as st
     hf_token = st.secrets.get("HF_TOKEN") or os.environ.get("HF_TOKEN")
     return HuggingFaceEndpoint(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.2",
+        repo_id="HuggingFaceH4/zephyr-7b-beta",
         huggingfacehub_api_token=hf_token,
         max_new_tokens=150,
         temperature=0.3,
@@ -101,4 +101,5 @@ if __name__ == "__main__":
 
     print("RESULT:", _safe_printable(response["result"]))
     print("SOURCE DOCUMENTS:", [_safe_printable(doc.page_content) for doc in response["source_documents"]])
+
 
