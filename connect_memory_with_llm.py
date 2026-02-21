@@ -15,14 +15,14 @@ env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 def load_llm():
-    from langchain_huggingface import ChatHuggingFace
-    llm = HuggingFaceEndpoint(
+    import streamlit as st
+    hf_token = st.secrets.get("HF_TOKEN") or os.environ.get("HF_TOKEN")
+    return HuggingFaceEndpoint(
         repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-        huggingfacehub_api_token=os.environ.get("HF_TOKEN"),
+        huggingfacehub_api_token=hf_token,
         max_new_tokens=150,
         temperature=0.3,
     )
-    return ChatHuggingFace(llm=llm)
 
 custom_prompt_template = """<|system|>
 You are a helpful medical assistant. Use the pieces of information provided in the context to answer user's question.
@@ -101,3 +101,4 @@ if __name__ == "__main__":
 
     print("RESULT:", _safe_printable(response["result"]))
     print("SOURCE DOCUMENTS:", [_safe_printable(doc.page_content) for doc in response["source_documents"]])
+
