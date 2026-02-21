@@ -12,13 +12,34 @@ load_dotenv()
 
 def load_llm():
     import streamlit as st
+    from huggingface_hub import InferenceClient
+    from langchain_core.language_models.llms import LLM
+    from typing import Optional, List
+    
     hf_token = st.secrets.get("HF_TOKEN") or os.environ.get("HF_TOKEN")
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
-    return HuggingFaceHub(
-        repo_id="HuggingFaceH4/zephyr-7b-beta",
-        huggingfacehub_api_token=hf_token,
-        model_kwargs={"temperature": 0.3, "max_new_tokens": 256}
-    )
+    
+    class DirectHFLLM(LLM):
+        token: str
+        
+        @property
+        def _llm_type(self):
+            return "huggingface"
+        
+        def _call(self, prompt: str, stop: Optional[List[str]] = None, **kwargs):
+            client = InferenceClient(
+                model="HuggingFaceH4/zephyr-7b-beta",
+                token=self.token
+            )
+            return client.text_generation(prompt, max_new_tokens=256)
+    
+    return DirectHFLLM(token=hf_token)
+```
+
+This bypasses LangChain's broken HuggingFace integration entirely and calls HuggingFace API directly.
+
+Also add to `requirements.txt`:
+```
+huggingface-hub>=0.20.0
 
 custom_prompt_template = """You are a helpful medical assistant. Use the context to answer the question.
 If you don't know the answer, say you don't know.
@@ -60,3 +81,4 @@ def create_qa_chain():
         db=db,
         prompt=set_custom_prompt(custom_prompt_template)
     )
+
