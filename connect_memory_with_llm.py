@@ -1,62 +1,42 @@
 import os
 import sys
 from pathlib import Path
-
 from dotenv import load_dotenv
-from langchain_community.llms import HuggingFaceHub
-```
-
-**And update `requirements.txt` on GitHub to include:**
-```
-langchain-community
-huggingface-hub
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-
+from langchain_community.llms import HuggingFaceHub
 from langchain_core.output_parsers import StrOutputParser
 
-# Load .env from project root (which is parent of backend directory)
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 
 def load_llm():
     import streamlit as st
     hf_token = st.secrets.get("HF_TOKEN") or os.environ.get("HF_TOKEN")
     os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
-    from langchain_community.llms import HuggingFaceHub
     return HuggingFaceHub(
         repo_id="HuggingFaceH4/zephyr-7b-beta",
         huggingfacehub_api_token=hf_token,
-        model_kwargs={
-            "temperature": 0.3,
-            "max_new_tokens": 256,
-        }
+        model_kwargs={"temperature": 0.3, "max_new_tokens": 256}
     )
 
-custom_prompt_template = """<|system|>
-You are a helpful medical assistant. Use the pieces of information provided in the context to answer user's question.
-If you dont know the answer, just say that you dont know, dont try to make up an answer.
-Dont provide anything out of the given context.
+custom_prompt_template = """You are a helpful medical assistant. Use the context to answer the question.
+If you don't know the answer, say you don't know.
 
-Context: {context}</s>
-<|user|>
-{question}</s>
-<|assistant|>
-"""
+Context: {context}
+Question: {question}
+Answer:"""
 
 def set_custom_prompt(custom_prompt_template):
-    prompt = PromptTemplate(
-        template=custom_prompt_template, input_variables=["context", "question"]
+    return PromptTemplate(
+        template=custom_prompt_template,
+        input_variables=["context", "question"]
     )
-    return prompt
 
 class QAChainWrapper:
     def __init__(self, llm, db, prompt):
-        self.llm = llm
         self.retriever = db.as_retriever(search_kwargs={"k": 3})
-        self.prompt = prompt
-        self.chain = self.prompt | self.llm | StrOutputParser()
+        self.chain = prompt | llm | StrOutputParser()
 
     def invoke(self, inputs):
         question = inputs.get("query", inputs.get("question", ""))
@@ -67,50 +47,16 @@ class QAChainWrapper:
 
 def create_qa_chain():
     DB_FAISS_PATH = "vectorstore/db_faiss"
-    print(f"Loading FAISS from: {DB_FAISS_PATH}")
-    
     if not os.path.exists(DB_FAISS_PATH):
-        raise FileNotFoundError(f"Vectorstore not found at {DB_FAISS_PATH}. Please run 'create_memory_for_llm.py' first.")
-
+        raise FileNotFoundError(f"Vectorstore not found at {DB_FAISS_PATH}")
     embedding_model = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
-    print("Embeddings loaded")
-
     db = FAISS.load_local(
         DB_FAISS_PATH, embedding_model, allow_dangerous_deserialization=True
     )
-    print("FAISS database loaded")
-
-    print("Creating QA chain...")
-    qa_chain = QAChainWrapper(
+    return QAChainWrapper(
         llm=load_llm(),
         db=db,
         prompt=set_custom_prompt(custom_prompt_template)
     )
-    print("QA chain created successfully")
-    return qa_chain
-
-if __name__ == "__main__":
-    qa_chain = create_qa_chain()
-    try:
-        user_query = sys.argv[1] if len(sys.argv) > 1 else input("Write query here: ")
-    except EOFError:
-        raise SystemExit(
-            "No input available. Run with a question argument, e.g.\n"
-            "  python connect_memory_with_llm.py \"What is diabetes?\""
-        )
-
-    response = qa_chain.invoke({"query": user_query})
-
-    stdout_encoding = sys.stdout.encoding or "utf-8"
-
-    def _safe_printable(text: object) -> str:
-        s = str(text)
-        return s.encode(stdout_encoding, errors="replace").decode(stdout_encoding, errors="replace")
-
-    print("RESULT:", _safe_printable(response["result"]))
-    print("SOURCE DOCUMENTS:", [_safe_printable(doc.page_content) for doc in response["source_documents"]])
-
-
-
