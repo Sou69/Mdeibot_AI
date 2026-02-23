@@ -2,6 +2,7 @@ streamlit
 langchain
 langchain-community
 langchain-huggingface
+langchain-core
 python-dotenv
 faiss-cpu
 transformers
@@ -9,3 +10,4 @@ torch
 sentence-transformers
 accelerate
 pypdf
+huggingface-hub>=0.20.0
