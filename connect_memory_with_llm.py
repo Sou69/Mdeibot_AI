@@ -23,11 +23,15 @@ def load_llm():
             return "huggingface"
 
         def _call(self, prompt: str, stop: Optional[List[str]] = None, **kwargs):
-            client = InferenceClient(
-                model="HuggingFaceH4/zephyr-7b-beta",
-                token=self.token
-            )
-            return client.text_generation(prompt, max_new_tokens=256)
+    client = InferenceClient(
+        model="HuggingFaceH4/zephyr-7b-beta",
+        token=self.token
+    )
+    response = client.chat_completion(
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=256
+    )
+    return response.choices[0].message.content
 
     return DirectHFLLM(token=hf_token)
 
@@ -75,3 +79,4 @@ def create_qa_chain():
         db=db,
         prompt=set_custom_prompt(custom_prompt_template)
     )
+
